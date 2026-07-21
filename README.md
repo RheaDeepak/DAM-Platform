@@ -106,9 +106,4 @@ npm run dev
 - **License:** add your chosen license file (e.g., `MIT`, `Apache-2.0`) and a short line here.
 - **Contact:** add maintainer contact info or project owner email.
 
----
 
-If you want, I can:
-- create `README.md` in the repo with this exact text, or
-- generate a concise `Getting Started` section only (copy-paste ready),
-- or scaffold the frontend Login + Upload UI next.
