@@ -10,6 +10,7 @@ class PermissionType(str, enum.Enum):
     EDIT = "edit"
     DELETE = "delete"
     UPLOAD = "upload"
+    DOWNLOAD = "download"
     APPROVE = "approve"
     MANAGE_ROLES = "manage_roles"
     EXPORT = "export"

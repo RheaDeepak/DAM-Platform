@@ -80,4 +80,4 @@ class AssetMetadata(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    asset = relationship("Asset", back_populates="metadata")
+    asset = relationship("Asset", back_populates="asset_metadata")
