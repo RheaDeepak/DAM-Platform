@@ -6,6 +6,7 @@ __pycache__/
 
 # FastAPI
 *.log
+storage/
 
 # Node / Next.js
 node_modules/
