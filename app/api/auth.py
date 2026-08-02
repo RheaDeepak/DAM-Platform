@@ -72,6 +72,43 @@ async def get_current_user(
     return user
 
 
+async def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Require the existing JWT user to still be active in the database."""
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user.",
+        )
+    return current_user
+
+
+def has_role(user: User, *required_roles: str) -> bool:
+    """Return True when the user has at least one of the requested role names."""
+    user_role_names = {role.name for role in user.roles}
+    return any(role_name in user_role_names for role_name in required_roles)
+
+
+def require_roles(*required_roles: str):
+    """Create a reusable dependency that permits any one of the requested roles."""
+    if not required_roles:
+        raise ValueError("At least one role is required")
+
+    async def role_dependency(
+        current_user: User = Depends(get_current_active_user),
+    ) -> User:
+        # A multi-role user is allowed when any assigned role matches.
+        if not has_role(current_user, *required_roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions.",
+            )
+        return current_user
+
+    return role_dependency
+
+
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def signup(user: UserSignup, db: Session = Depends(get_db)):
     """Register a new user"""

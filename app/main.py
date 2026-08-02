@@ -13,6 +13,7 @@ from app.models import (
     Permission,
     AuditLog,
 )
+from app.models.role import PermissionType
 from app.api import auth, assets, tags, roles, users, audit
 
 # Initialize database
@@ -59,54 +60,58 @@ def health_check():
     return {"status": "healthy"}
 
 
+def seed_default_roles(db: Session) -> None:
+    """Create or update the built-in roles and their existing permissions."""
+    permissions_map = {}
+    for permission_type in PermissionType:
+        permission = db.query(Permission).filter(
+            Permission.permission_type == permission_type
+        ).first()
+        if not permission:
+            permission = Permission(
+                permission_type=permission_type,
+                description=f"{permission_type.value} permission",
+            )
+            db.add(permission)
+            db.flush()
+        permissions_map[permission_type] = permission
+
+    default_roles = {
+        "admin": (
+            "Administrator with full access",
+            list(PermissionType),
+        ),
+        "editor": (
+            "Editor can upload and modify assets",
+            [
+                PermissionType.VIEW,
+                PermissionType.EDIT,
+                PermissionType.UPLOAD,
+                PermissionType.DOWNLOAD,
+            ],
+        ),
+        "viewer": (
+            "Viewer can only view and download assets",
+            [PermissionType.VIEW, PermissionType.DOWNLOAD],
+        ),
+    }
+
+    for role_name, (description, permission_types) in default_roles.items():
+        role = db.query(Role).filter(Role.name == role_name).first()
+        if not role:
+            role = Role(name=role_name)
+            db.add(role)
+        role.description = description
+        role.permissions = [permissions_map[item] for item in permission_types]
+
+    db.commit()
+
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize default roles and permissions on startup"""
+    """Initialize the built-in RBAC roles and permissions on startup."""
     db = SessionLocal()
     try:
-        # Check if roles already exist
-        admin_role = db.query(Role).filter(Role.name == "admin").first()
-        if not admin_role:
-            # Create default permissions
-            from app.models.role import PermissionType
-            
-            permissions_map = {}
-            for perm_type in PermissionType:
-                existing = db.query(Permission).filter(
-                    Permission.permission_type == perm_type
-                ).first()
-                if not existing:
-                    perm = Permission(
-                        permission_type=perm_type,
-                        description=f"{perm_type.value} permission"
-                    )
-                    db.add(perm)
-                    db.flush()
-                    permissions_map[perm_type] = perm
-                else:
-                    permissions_map[perm_type] = existing
-            
-            # Create default roles
-            admin_role = Role(name="admin", description="Administrator with full access")
-            admin_role.permissions = list(permissions_map.values())
-            
-            editor_role = Role(name="editor", description="Editor can upload and modify assets")
-            editor_role.permissions = [
-                permissions_map[PermissionType.VIEW],
-                permissions_map[PermissionType.EDIT],
-                permissions_map[PermissionType.UPLOAD],
-                permissions_map[PermissionType.DOWNLOAD],
-            ]
-            
-            viewer_role = Role(name="viewer", description="Viewer can only view and download assets")
-            viewer_role.permissions = [
-                permissions_map[PermissionType.VIEW],
-                permissions_map[PermissionType.DOWNLOAD],
-            ]
-            
-            db.add(admin_role)
-            db.add(editor_role)
-            db.add(viewer_role)
-            db.commit()
+        seed_default_roles(db)
     finally:
         db.close()

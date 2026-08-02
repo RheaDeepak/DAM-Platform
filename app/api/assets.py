@@ -10,7 +10,7 @@ from typing import Optional
 from app.database import SessionLocal
 from app.models import Asset, AssetVersion, AssetMetadata, AssetType, AuditLog, AuditAction, Tag
 from app.schemas.asset import AssetCreate, AssetUpdate, AssetResponse, AssetDetailResponse, AssetListResponse
-from app.api.auth import get_current_user
+from app.api.auth import require_roles
 from app.models.user import User
 
 router = APIRouter(prefix="/assets", tags=["assets"])
@@ -46,7 +46,7 @@ def infer_asset_type(mime_type: str) -> AssetType:
 def create_asset(
     asset: AssetCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor"))
 ):
     """Upload a new asset"""
     new_asset = Asset(
@@ -83,7 +83,7 @@ async def upload_asset(
     description: Optional[str] = Form(None),
     asset_type: Optional[AssetType] = Form(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles("admin", "editor")),
 ):
     """Save an uploaded file locally and create its asset record."""
     original_filename = Path(file.filename or "").name
@@ -150,7 +150,7 @@ def list_assets(
     status: Optional[str] = None,
     tag: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor", "viewer"))
 ):
     """List assets with pagination and filtering"""
     query = db.query(Asset).filter(Asset.status != "deleted")
@@ -179,7 +179,7 @@ def list_assets(
 def get_asset(
     asset_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor", "viewer"))
 ):
     """Get asset details with metadata and versions"""
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
@@ -204,15 +204,12 @@ def update_asset(
     asset_id: int,
     asset_update: AssetUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor"))
 ):
     """Update asset metadata"""
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
-    if asset.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this asset")
     
     if asset_update.filename:
         asset.filename = asset_update.filename
@@ -241,15 +238,12 @@ def update_asset(
 def delete_asset(
     asset_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """Delete an asset (soft delete by marking as deleted)"""
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
-    if asset.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this asset")
     
     asset.status = "deleted"
     db.commit()
@@ -270,7 +264,7 @@ def add_tag_to_asset(
     asset_id: int,
     tag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor"))
 ):
     """Add a tag to an asset"""
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
@@ -302,7 +296,7 @@ def remove_tag_from_asset(
     asset_id: int,
     tag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor"))
 ):
     """Remove a tag from an asset"""
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
