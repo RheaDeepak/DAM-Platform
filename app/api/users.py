@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import User, Role
 from app.schemas.user import UserResponse
-from app.api.auth import get_current_user
+from app.api.auth import get_current_active_user, require_roles
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -19,7 +19,7 @@ def get_db():
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user_profile(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """Get current user profile"""
     return UserResponse.from_orm(current_user)
@@ -29,7 +29,7 @@ def get_current_user_profile(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """Get user profile"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -44,7 +44,7 @@ def list_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """List all users"""
     users = db.query(User).offset(skip).limit(limit).all()
@@ -56,7 +56,7 @@ def assign_role_to_user(
     user_id: int,
     role_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """Assign a role to a user"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -79,7 +79,7 @@ def remove_role_from_user(
     user_id: int,
     role_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """Remove a role from a user"""
     user = db.query(User).filter(User.id == user_id).first()

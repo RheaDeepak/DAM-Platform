@@ -5,7 +5,7 @@ from typing import Optional
 from app.database import SessionLocal
 from app.models import AuditLog, Asset
 from app.schemas.audit import AuditLogResponse, AuditLogListResponse
-from app.api.auth import get_current_user
+from app.api.auth import require_roles
 from app.models.user import User
 
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
@@ -27,7 +27,7 @@ def list_audit_logs(
     user_id: Optional[int] = None,
     action: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """List audit logs with filtering"""
     query = db.query(AuditLog)
@@ -58,7 +58,7 @@ def get_asset_audit_logs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """Get audit logs for a specific asset"""
     asset = db.query(Asset).filter(Asset.id == asset_id).first()

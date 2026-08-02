@@ -5,7 +5,7 @@ from typing import Optional
 from app.database import SessionLocal
 from app.models import Tag, Asset
 from app.schemas.tag import TagCreate, TagResponse, TagWithAssetsResponse
-from app.api.auth import get_current_user
+from app.api.auth import require_roles
 from app.models.user import User
 
 router = APIRouter(prefix="/tags", tags=["tags"])
@@ -23,7 +23,7 @@ def get_db():
 def create_tag(
     tag: TagCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor"))
 ):
     """Create a new tag"""
     existing_tag = db.query(Tag).filter(Tag.name == tag.name).first()
@@ -46,7 +46,7 @@ def list_tags(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor", "viewer"))
 ):
     """List all tags with asset counts"""
     tags = db.query(Tag).offset(skip).limit(limit).all()
@@ -69,7 +69,7 @@ def list_tags(
 def get_tag(
     tag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor", "viewer"))
 ):
     """Get tag details with asset count"""
     tag = db.query(Tag).filter(Tag.id == tag_id).first()
@@ -89,7 +89,7 @@ def get_tag(
 def delete_tag(
     tag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin", "editor"))
 ):
     """Delete a tag"""
     tag = db.query(Tag).filter(Tag.id == tag_id).first()

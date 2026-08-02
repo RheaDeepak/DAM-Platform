@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import Role, Permission, User
 from app.schemas.role import RoleCreate, RoleUpdate, RoleResponse, RoleDetailResponse
-from app.api.auth import get_current_user
+from app.api.auth import require_roles
 
 router = APIRouter(prefix="/roles", tags=["roles"])
 
@@ -21,7 +21,7 @@ def get_db():
 def create_role(
     role: RoleCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """Create a new role"""
     existing_role = db.query(Role).filter(Role.name == role.name).first()
@@ -49,7 +49,7 @@ def list_roles(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """List all roles"""
     roles = db.query(Role).offset(skip).limit(limit).all()
@@ -60,7 +60,7 @@ def list_roles(
 def get_role(
     role_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """Get role details with permissions"""
     role = db.query(Role).filter(Role.id == role_id).first()
@@ -75,7 +75,7 @@ def update_role(
     role_id: int,
     role_update: RoleUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """Update role details"""
     role = db.query(Role).filter(Role.id == role_id).first()
@@ -105,7 +105,7 @@ def update_role(
 def delete_role(
     role_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("admin"))
 ):
     """Delete a role"""
     role = db.query(Role).filter(Role.id == role_id).first()
