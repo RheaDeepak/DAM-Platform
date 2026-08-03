@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Depends, status, Query, File, Form, UploadFile
 from fastapi.responses import FileResponse
+from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import Literal, Optional
@@ -195,17 +196,26 @@ async def upload_asset(
     responses={401: {"description": "Authentication required"}},
 )
 def list_assets(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
+    skip: int = Query(0, ge=0, description="Number of matching assets to skip"),
+    limit: int = Query(10, ge=1, le=100, description="Maximum number of matching assets to return"),
+    search: Optional[str] = Query(
+        default=None,
+        min_length=1,
+        max_length=200,
+        description="Case-insensitive keyword search across title, filenames, descriptions, and tags",
+    ),
     asset_type: Optional[AssetType] = None,
     status: Optional[AssetStatus] = None,
     tag: Optional[str] = None,
-    sort_by: Literal["created_at", "updated_at", "filename", "file_size"] = "created_at",
+    sort_by: Literal["title", "created_at", "updated_at", "filename", "file_size"] = Query(
+        default="created_at",
+        description="Field used to sort matching assets",
+    ),
     sort_order: Literal["asc", "desc"] = "desc",
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles("admin", "editor", "viewer"))
 ):
-    """List visible assets with filters, pagination, and a safe sort field."""
+    """List visible assets with database-side search, filters, pagination, and sorting."""
     query = asset_query(db).filter(Asset.status != AssetStatus.DELETED)
     
     if asset_type:
@@ -217,8 +227,31 @@ def list_assets(
     if tag:
         query = query.join(Tag, Asset.tags).filter(Tag.name == tag)
 
+    if search is not None:
+        search_term = search.strip()
+        if not search_term:
+            raise HTTPException(status_code=422, detail="Search must contain non-space characters")
+
+        # Escape SQL wildcard characters so a keyword is searched literally with PostgreSQL ILIKE.
+        escaped_term = search_term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        search_pattern = f"%{escaped_term}%"
+        # Keep filtering in PostgreSQL: match asset names, description, and any related tag.
+        query = query.filter(or_(
+            Asset.filename.ilike(search_pattern, escape="\\"),
+            Asset.original_filename.ilike(search_pattern, escape="\\"),
+            Asset.description.ilike(search_pattern, escape="\\"),
+            Asset.tags.any(Tag.name.ilike(search_pattern, escape="\\")),
+        ))
+
     total = query.count()
-    sort_column = getattr(Asset, sort_by)
+    sort_columns = {
+        "title": Asset.filename,
+        "created_at": Asset.created_at,
+        "updated_at": Asset.updated_at,
+        "filename": Asset.filename,
+        "file_size": Asset.file_size,
+    }
+    sort_column = sort_columns[sort_by]
     order_by = sort_column.asc() if sort_order == "asc" else sort_column.desc()
     items = query.order_by(order_by, Asset.id.desc()).offset(skip).limit(limit).all()
     
