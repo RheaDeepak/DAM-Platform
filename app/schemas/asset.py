@@ -57,8 +57,16 @@ class AssetResponse(BaseModel):
     filename: str
     original_filename: str
     asset_type: AssetType
-    mime_type: str
-    file_size: int
+    mime_type: str = Field(description="MIME type supplied by the upload or inferred from the filename")
+    file_size: int = Field(description="Uploaded file size in bytes")
+    file_extension: Optional[str] = Field(
+        default=None,
+        description="Lowercase file extension without the leading dot",
+    )
+    checksum: Optional[str] = Field(
+        default=None,
+        description="SHA-256 checksum of the uploaded file",
+    )
     status: AssetStatus
     description: Optional[str]
     file_path: str

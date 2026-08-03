@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine, SessionLocal
@@ -18,6 +19,20 @@ from app.api import auth, assets, tags, roles, users, audit
 
 # Initialize database
 Base.metadata.create_all(bind=engine)
+
+
+def ensure_asset_metadata_columns() -> None:
+    """Upgrade existing development databases with newly added asset metadata columns."""
+    with engine.begin() as connection:
+        connection.execute(text(
+            "ALTER TABLE assets ADD COLUMN IF NOT EXISTS file_extension VARCHAR"
+        ))
+        connection.execute(text(
+            "ALTER TABLE assets ADD COLUMN IF NOT EXISTS checksum VARCHAR(64)"
+        ))
+
+
+ensure_asset_metadata_columns()
 
 # Create FastAPI app
 app = FastAPI(
