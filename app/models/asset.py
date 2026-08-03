@@ -51,6 +51,11 @@ class Asset(Base):
     tags = relationship("Tag", secondary="asset_tags", back_populates="assets")
     audit_logs = relationship("AuditLog", back_populates="asset", cascade="all, delete-orphan")
 
+    @property
+    def title(self) -> str:
+        """Expose the existing filename field as the API-friendly asset title."""
+        return self.filename
+
 
 class AssetVersion(Base):
     __tablename__ = "asset_versions"
