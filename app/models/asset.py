@@ -36,13 +36,15 @@ class Asset(Base):
     original_filename = Column(String)
     asset_type = Column(Enum(AssetType), index=True)
     file_path = Column(String, unique=True, index=True)
-    file_size = Column(BigInteger)  # in bytes
-    mime_type = Column(String)
+    file_size = Column(BigInteger)  # Counted from upload chunks, in bytes.
+    mime_type = Column(String)  # Taken from the upload content type or filename fallback.
+    file_extension = Column(String, nullable=True)  # Derived from the original filename.
+    checksum = Column(String(64), nullable=True)  # SHA-256 generated while the file is saved.
     status = Column(Enum(AssetStatus), default=AssetStatus.ACTIVE, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"), index=True)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Updated by SQLAlchemy.
 
     # Relationships
     owner = relationship("User", back_populates="assets")

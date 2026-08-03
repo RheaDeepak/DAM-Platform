@@ -1,3 +1,4 @@
+import hashlib
 import mimetypes
 from pathlib import Path
 from uuid import uuid4
@@ -123,11 +124,17 @@ async def upload_asset(
     if not original_filename:
         raise HTTPException(status_code=400, detail="A file with a filename is required")
 
+    # MIME type comes from the multipart upload, with a filename-based fallback.
     mime_type = file.content_type or mimetypes.guess_type(original_filename)[0] or "application/octet-stream"
+    # Generated from the submitted filename; users do not provide this separately.
+    file_extension = Path(original_filename).suffix.lower().lstrip(".") or None
     stored_filename = f"{uuid4().hex}{Path(original_filename).suffix.lower()}"
     STORAGE_DIRECTORY.mkdir(parents=True, exist_ok=True)
     stored_path = STORAGE_DIRECTORY / stored_filename
+    # File size is counted from the actual upload chunks, not supplied by the user.
     file_size = 0
+    # Updated as each chunk is written, avoiding a second read of the saved file.
+    checksum_hasher = hashlib.sha256()
     upload_succeeded = False
 
     try:
@@ -139,7 +146,11 @@ async def upload_asset(
                         status_code=413,
                         detail="File is too large. The maximum upload size is 100 MB.",
                     )
+                checksum_hasher.update(chunk)
                 destination.write(chunk)
+
+        # The final SHA-256 hex digest identifies this exact file content.
+        checksum = checksum_hasher.hexdigest()
 
         new_asset = Asset(
             filename=title.strip() if title and title.strip() else original_filename,
@@ -148,6 +159,8 @@ async def upload_asset(
             file_path=stored_path.relative_to(PROJECT_ROOT).as_posix(),
             file_size=file_size,
             mime_type=mime_type,
+            file_extension=file_extension,
+            checksum=checksum,
             description=description,
             owner_id=current_user.id,
         )
