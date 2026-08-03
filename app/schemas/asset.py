@@ -1,7 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from app.models.asset import AssetType, AssetStatus
+from app.schemas.tag import TagResponse
+from app.schemas.user import UserResponse
 
 
 class AssetMetadataCreate(BaseModel):
@@ -41,13 +43,17 @@ class AssetCreate(BaseModel):
 
 
 class AssetUpdate(BaseModel):
-    filename: Optional[str] = None
+    # "filename" is retained for existing clients; "title" is the clearer API name.
+    title: Optional[str] = Field(default=None, min_length=1)
+    filename: Optional[str] = Field(default=None, min_length=1)
     description: Optional[str] = None
+    tag_ids: Optional[List[int]] = None
     status: Optional[AssetStatus] = None
 
 
 class AssetResponse(BaseModel):
     id: int
+    title: str
     filename: str
     original_filename: str
     asset_type: AssetType
@@ -55,7 +61,10 @@ class AssetResponse(BaseModel):
     file_size: int
     status: AssetStatus
     description: Optional[str]
+    file_path: str
     owner_id: int
+    owner: UserResponse
+    tags: List[TagResponse]
     created_at: datetime
     updated_at: datetime
 
@@ -72,4 +81,6 @@ class AssetListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+    page: int
+    pages: int
     items: List[AssetResponse]
