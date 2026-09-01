@@ -65,45 +65,10 @@ npm run dev
 - Tagging: `POST /assets/{id}/tags/{tag_id}` and `DELETE /assets/{id}/tags/{tag_id}`
 - Roles and audit endpoints: `/roles`, `/users`, `/audit-logs`
 
-**Where code lives (high level)**
-- **Backend API routers:** [app/api/](app/api) — `auth`, `assets`, `tags`, `roles`, `users`, `audit`
-- **Models:** [app/models/](app/models) — `user.py`, `asset.py`, `tag.py`, `role.py`, `audit.py`
-- **Schemas / DTOs:** [app/schemas/](app/schemas)
-- **Frontend:** `frontend/app` contains React/Next app
 
-**Recommended next implementation steps (short)**
-- Make uploads persist files:
-  - Add `POST /assets/upload` to accept `multipart/form-data` and save to local `storage/` or S3-compatible service.
-  - Store canonical `file_path` in `assets.file_path`.
-- Wire frontend login + upload + asset list:
-  - Replace [frontend/app/page.tsx](frontend/app/page.tsx) with simple Login / Library / Upload pages.
-- Add search indexing:
-  - Start with DB-backed search (title/tags/metadata).
-  - Later add vector search or external indexing (Elastic/Opensearch, Azure Cognitive Search).
-- Add duplicate detection + basic AI tagging (separate service or cloud AI integration).
-- Harden auth & RBAC:
-  - Enforce role checks on endpoints.
-  - Use HTTPS in production and rotate `SECRET_KEY`.
 
-**Security & secrets**
-- Never commit `.env` or credentials to git. Add them to `.gitignore`.
-- Replace `SECRET_KEY` before deployment. Use a secrets manager (Azure Key Vault/AWS Secrets Manager).
 
-**Testing**
-- Unit tests: add `tests/` for models and API endpoints.
-- Manual: use Swagger or Postman to exercise endpoints and verify audit logs.
 
-**Development tips**
-- Use Docker for reproducible dev environments (Postgres + app).
-- Use Alembic for schema migrations — `alembic` is in `requirements.txt`. Initialize `alembic` and create migration scripts once DB schema stabilizes.
 
-**Contributing**
-- **Branching:** feature branches off `main` named `feature/<short-desc>`
-- **Pull requests:** include short summary, testing steps, and link to relevant issue
-- **Code style:** follow existing Python/PEP8 conventions; run linters locally
-
-**License & Contact**
-- **License:** add your chosen license file (e.g., `MIT`, `Apache-2.0`) and a short line here.
-- **Contact:** add maintainer contact info or project owner email.
 
 
